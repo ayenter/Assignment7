@@ -54,23 +54,21 @@ app.post('/', function(req, res) {
             db.incr('next', function(err, value){
                 if (value!=null && err==null){
                     var key = (value).toString(36);
-                    
-                    db.setnx('long:'+ input, "http://localhost:3000/"+key, function(err, reply){
-                        if(reply){
+                    db.get('long:'+ input, function(err, exists){
+                        console.log("exists:" + exists);
+                        if (exists==null){
+                            db.setnx('long:'+ input, "http://localhost:3000/"+key);
                             db.setnx('short:' + key, input);
-                        }
-                        db.get('long:'+ input, "http://localhost:3000/"+key, function(err, reply){
                             db.zrevrange(["clicks", 0, 9], function (err, topten) {
                                 console.log(topten);
                                 res.render('index', {top: topten, output: "http://localhost:3000/"+key});
                             });
-                        });
-                    });
-                    
-                } else {
-                    db.zrevrange(["clicks", 0, 9], function (err, topten) {
-                        console.log(topten);
-                        res.render('index', {top: topten, output: "FAILED TO GENERATE NEW KEY"});
+                        } else {
+                            db.zrevrange(["clicks", 0, 9], function (err, topten) {
+                                console.log(topten);
+                                res.render('index', {top: topten, output: exists});
+                            });
+                        }
                     });
                 }
             });
@@ -84,7 +82,7 @@ app.all('/:key', function(req, res) {
         "use strict";
 
         if(reply!=null && err==null){
-            db.zincrby(["clicks", 1, req.params.key]);
+            db.zincrby(["clicks", 1, req.params.key], function(){});
 
             res.redirect(reply);
 
